@@ -1,0 +1,22 @@
+*{
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+
+}
+
+.content1{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: top;
+    align-items: center;
+    color: white;
+}
+
+.overlay{
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.2);
+}
