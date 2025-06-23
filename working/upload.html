@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disease Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #upload-section {
+            margin-top: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .button {
+            margin: 5px;
+            padding: 10px 15px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        #status {
+            margin-top: 20px;
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Disease Analysis</h1>
+
+    <div id="symptoms-section">
+        <h3>Step 1: Enter Symptoms</h3>
+        <textarea id="symptoms" rows="5" cols="50" placeholder="Enter patient's symptoms"></textarea><br>
+        <button class="button" onclick="submitSymptoms()">Submit Symptoms</button>
+    </div>
+
+    <div id="upload-section" class="hidden">
+        <h3 id="test-name"></h3>
+        <input type="file" id="file-input"><br>
+        <button class="button" onclick="uploadFile()">Upload</button>
+        <button class="button" style="background-color: #FF5733;" onclick="skipTest()">Skip</button>
+    </div>
+
+    <div id="status"></div>
+
+    <div id="final-report" class="hidden">
+        <h3>Final Disease Report</h3>
+        <button class="button" onclick="fetchFinalReport()">Generate Report</button>
+        <p id="report-content"></p>
+    </div>
+
+    <script>
+        let tests = []; // List of tests/scans to process
+        let currentTestIndex = 0; // Tracks the current test/scan being processed
+
+        async function submitSymptoms() {
+            const symptoms = document.getElementById("symptoms").value;
+            if (!symptoms) {
+                alert("Please enter symptoms.");
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:5000/disease_analysis", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ symptom: symptoms }),
+                });
+
+                const data = await response.json();
+                if (data.tests) {
+                    tests = data.tests;
+                    currentTestIndex = 0;
+                    document.getElementById("symptoms-section").classList.add("hidden");
+                    showNextTest();
+                } else {
+                    alert("Failed to fetch test recommendations.");
+                }
+            } catch (error) {
+                console.error("Error submitting symptoms:", error);
+                alert("Error processing symptoms.");
+            }
+        }
+
+        function showNextTest() {
+            if (currentTestIndex < tests.length) {
+                document.getElementById("test-name").textContent = `Please upload results for: ${tests[currentTestIndex]}`;
+                document.getElementById("upload-section").classList.remove("hidden");
+            } else {
+                document.getElementById("upload-section").classList.add("hidden");
+                document.getElementById("final-report").classList.remove("hidden");
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById("file-input");
+            const file = fileInput.files[0];
+            if (!file) {
+                alert("Please select a file.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("test_name", tests[currentTestIndex]);
+
+            try {
+                const response = await fetch("http://localhost:5000/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+                document.getElementById("status").textContent = data.message || "File uploaded successfully!";
+                currentTestIndex++;
+                fileInput.value = ""; // Reset file input
+                showNextTest();
+            } catch (error) {
+                console.error("Error uploading file:", error);
+                alert("Error uploading file.");
+            }
+        }
+
+        async function skipTest() {
+            try {
+                const response = await fetch("http://localhost:5000/upload", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    body: new URLSearchParams({
+                        test_name: tests[currentTestIndex],
+                        skip: "true",
+                    }),
+                });
+
+                const data = await response.json();
+                document.getElementById("status").textContent = data.message || "Test skipped.";
+                currentTestIndex++;
+                showNextTest();
+            } catch (error) {
+                console.error("Error skipping test:", error);
+                alert("Error skipping test.");
+            }
+        }
+
+        async function fetchFinalReport() {
+            try {
+                const response = await fetch("http://localhost:5000/generate_report");
+                const data = await response.json();
+                if (data.disease) {
+                    document.getElementById("report-content").textContent = `Disease detected: ${data.disease}`;
+                } else {
+                    document.getElementById("report-content").textContent = "No disease detected.";
+                }
+            } catch (error) {
+                console.error("Error fetching final report:", error);
+                alert("Error fetching final report.");
+            }
+        }
+    </script>
+</body>
+</html>
